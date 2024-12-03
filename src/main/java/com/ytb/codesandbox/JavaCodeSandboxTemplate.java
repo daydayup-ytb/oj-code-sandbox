@@ -23,7 +23,7 @@ public abstract class JavaCodeSandboxTemplate implements CodeSandBox{
 
     @Override
     public ExecuteCodeResponse executeCode(ExecuteCodeRequest executeCodeRequest) {
-        List<List<InputItem>> inputTestCaseList = executeCodeRequest.getInputTestCaseList();
+        List<List<InputItem>> inputTestCaseList = executeCodeRequest.getInputTestCaseList();List<InputItem> inputTestCase = executeCodeRequest.getInputTestCase();
         String code = executeCodeRequest.getCode();
         String language = executeCodeRequest.getLanguage();
 
@@ -34,11 +34,19 @@ public abstract class JavaCodeSandboxTemplate implements CodeSandBox{
         ExecuteMessage compileFileExecuteMessage = compileFile(userCodeFile);
         System.out.println(compileFileExecuteMessage);
 
-        //3.执行代码，得到输出结果
-        List<ExecuteMessage> executeMessageList = runFile(userCodeFile, inputTestCaseList);
+        ExecuteCodeResponse outputResponse;
+        if (inputTestCaseList == null || inputTestCaseList.isEmpty()){
+            //3.执行代码，得到输出结果
+            ExecuteMessage executeMessage = runFileByTestCase(userCodeFile, inputTestCase);
+            //4.收集整理输出信息
+            outputResponse = getOutputResponse(executeMessage);
+        }else{
+            //3.执行代码，得到输出结果
+            List<ExecuteMessage> executeMessageList = runFileByTestCaseList(userCodeFile, inputTestCaseList);
+            //4.收集整理输出信息
+            outputResponse = getOutputResponse(executeMessageList);
+        }
 
-        //4.收集整理输出信息
-        ExecuteCodeResponse outputResponse = getOutputResponse(executeMessageList);
         //5.文件清理
         boolean b = deleteFile(userCodeFile);
         if (!b){
@@ -94,7 +102,7 @@ public abstract class JavaCodeSandboxTemplate implements CodeSandBox{
      * @param
      * @return
      */
-    public List<ExecuteMessage> runFile(File userCodeFile,List<List<InputItem>> inputTestCaseList){
+    public List<ExecuteMessage> runFileByTestCaseList(File userCodeFile,List<List<InputItem>> inputTestCaseList){
         String userCodeParentPath = userCodeFile.getParentFile().getAbsolutePath();
 
         List<ExecuteMessage> executeMessageList = new ArrayList<>();
@@ -120,6 +128,35 @@ public abstract class JavaCodeSandboxTemplate implements CodeSandBox{
             }
         }
         return executeMessageList;
+    }
+
+    /**
+     * 3.执行文件，获得执行结果列表
+     * @param userCodeFile
+     * @param
+     * @return
+     */
+    public ExecuteMessage runFileByTestCase(File userCodeFile,List<InputItem> inputTestCase){
+        String userCodeParentPath = userCodeFile.getParentFile().getAbsolutePath();
+        String runCmd = String.format("java -Xmx256m -Dfile.encoding=UTF-8 -cp %s Main %s", userCodeParentPath, inputTestCase);
+        try{
+            Process runProcess = Runtime.getRuntime().exec(runCmd);
+            //超时控制 限制用户执行超时程序
+            new Thread(() ->{
+                try {
+                    Thread.sleep(TIME_OUT);
+                    System.out.println("超时了，中断");
+                    runProcess.destroy();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }).start();
+            ExecuteMessage executeMessage = ProcessUtils.runProcessAndGetMessage(runProcess, "运行",inputTestCase);
+            log.info("executeMessage=:"+executeMessage.toString());
+            return executeMessage;
+        }catch (Exception e){
+            throw new RuntimeException("执行错误",e);
+        }
     }
 
     /**
@@ -153,6 +190,32 @@ public abstract class JavaCodeSandboxTemplate implements CodeSandBox{
         executeCodeResponse.setOutputTestResultList(outputTestResultList);
         JudgeInfo judgeInfo = new JudgeInfo();
         judgeInfo.setTime(maxTime);
+        //要借助第三方库来获取内存占用，非常麻烦，此处不做实现
+//        judgeInfo.setMemory();
+        executeCodeResponse.setJudgeInfo(judgeInfo);
+        return executeCodeResponse;
+    }
+
+    /**
+     * 4.获取输出结果
+     * @param executeMessage
+     * @return
+     */
+    public ExecuteCodeResponse getOutputResponse(ExecuteMessage executeMessage){
+        ExecuteCodeResponse executeCodeResponse = new ExecuteCodeResponse();
+        //取用最大值，便于判断是否超时
+        String errorMessage = executeMessage.getErrorMessage();
+        if (StrUtil.isNotBlank(errorMessage)){
+            executeCodeResponse.setMessage(errorMessage);
+            //用户提交的程序执行中存在错误
+            executeCodeResponse.setStatus(3);
+        }
+        Long time = executeMessage.getTime();
+        //正常运行完成
+        executeCodeResponse.setStatus(1);
+        executeCodeResponse.setOutputTestResult(executeMessage.getMessage());
+        JudgeInfo judgeInfo = new JudgeInfo();
+        judgeInfo.setTime(time);
         //要借助第三方库来获取内存占用，非常麻烦，此处不做实现
 //        judgeInfo.setMemory();
         executeCodeResponse.setJudgeInfo(judgeInfo);
