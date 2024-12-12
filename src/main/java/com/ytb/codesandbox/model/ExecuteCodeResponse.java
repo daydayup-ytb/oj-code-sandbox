@@ -13,23 +13,32 @@ import java.util.List;
 @NoArgsConstructor
 public class ExecuteCodeResponse {
 
-    private List<List<OutputItem>> outputTestResultList;
+    /**
+     * 代码
+     */
+    private Integer code;
 
     /**
-     * 接口信息
+     * 信息
      */
     private String message;
+
+    /**
+     * 错误信息
+     */
+    private String errorInfo;
 
     /**
      * 执行状态
      */
     private Integer status;
 
-
     /**
      * 判题信息
      */
     private JudgeInfo judgeInfo;
+
+    private List<List<OutputItem>> outputTestResultList;
 
     private List<OutputItem> outputTestResult;
 }
