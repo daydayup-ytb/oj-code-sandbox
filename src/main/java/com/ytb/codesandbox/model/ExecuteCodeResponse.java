@@ -14,29 +14,9 @@ import java.util.List;
 public class ExecuteCodeResponse {
 
     /**
-     * 代码
+     * 代码沙箱执行结果信息
      */
-    private Integer code;
-
-    /**
-     * 信息
-     */
-    private String message;
-
-    /**
-     * 错误信息
-     */
-    private String errorInfo;
-
-    /**
-     * 执行状态
-     */
-    private Integer status;
-
-    /**
-     * 判题信息
-     */
-    private JudgeInfo judgeInfo;
+    private ExecuteResultInfo executeResultInfo;
 
     private List<List<OutputItem>> outputTestResultList;
 

@@ -1,0 +1,14 @@
+version: '3'
+services:
+  oj-code-sandbox-service:
+    container_name: oj-code-sandbox-service
+    build:
+      context: ../oj-code-sandbox
+      dockerfile: Dockerfile
+    ports:
+      - "8090:8090"
+    networks:
+      - mynetwork
+networks:
+  mynetwork:
+
